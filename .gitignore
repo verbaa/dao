@@ -1,0 +1,51 @@
+# Node dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json.*
+yarn.lock.*
+pnpm-lock.yaml.*
+
+# Env & config
+.env
+.env.*
+*.local
+
+# Logs
+logs/
+*.log
+logs-*.txt
+npm-cache/
+debug.log
+error.log
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+
+# IDEs / editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build / output
+dist/
+build/
+coverage/
+tmp/
+temp/
+.cache/
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Misc
+*.tgz
+*.orig
+*.rej
