@@ -5,5 +5,6 @@
   "function executeProposal(uint256 _id) external",
   "function getProposal(uint256 _id) view returns (tuple(uint256 id, string description, bool executed))",
   "event ProposalCreated(uint256 indexed id, address indexed creator, string description)",
-  "event ProposalExecuted(uint256 indexed id, address indexed executor)"
+  "event ProposalExecuted(uint256 indexed id, address indexed executor)",
+  "event Voted(uint256 indexed id, address indexed voter, bool support)"
 ]

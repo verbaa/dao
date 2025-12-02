@@ -1,8 +1,8 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-
 const proposalsRoutes = require("./routes/proposals.js");
+const { listenToEvents } = require("./events/index.js");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,4 +19,6 @@ app.get("/", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(`Connected to DAO at: ${process.env.DAO_ADDRESS}`);
+
+  listenToEvents();
 });
