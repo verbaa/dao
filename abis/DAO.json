@@ -1,10 +1,12 @@
 [
   "function proposalCount() view returns (uint256)",
-  "function proposals(uint256) view returns (uint256 id, string description, bool executed)",
+  "function VOTE_DURATION() view returns (uint256)",
+  "function proposals(uint256) view returns (uint256 id, string description, bool executed, uint256 votesFor, uint256 votesAgainst, uint256 deadline)",
   "function createProposal(string _description) external",
+  "function vote(uint256 _id, bool _support) external",
   "function executeProposal(uint256 _id) external",
-  "function getProposal(uint256 _id) view returns (tuple(uint256 id, string description, bool executed))",
-  "event ProposalCreated(uint256 indexed id, address indexed creator, string description)",
+  "function getProposal(uint256 _id) view returns (tuple(uint256 id, string description, bool executed, uint256 votesFor, uint256 votesAgainst, uint256 deadline))",
+  "event ProposalCreated(uint256 indexed id, address indexed creator, string description, uint256 deadline)",
   "event ProposalExecuted(uint256 indexed id, address indexed executor)",
-  "event Voted(uint256 indexed id, address indexed voter, bool support)"
+  "event Voted(uint256 indexed proposalId, address indexed voter, bool support, uint256 weight)"
 ]

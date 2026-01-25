@@ -1,7 +1,11 @@
 const { ethers } = require("ethers");
-const DAO_ABI = require("../abis/DAO.json");
+const fs = require("fs");
+const path = require("path");
 const { inMemoryProposals } = require("../store");
 require("dotenv").config();
+
+const abiPath = path.join(__dirname, "../abis/DAO.json");
+const DAO_ABI = JSON.parse(fs.readFileSync(abiPath, "utf8"));
 
 const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
 const daoContract = new ethers.Contract(
@@ -10,34 +14,42 @@ const daoContract = new ethers.Contract(
   provider
 );
 
+const DEPLOYMENT_BLOCK = 1877941
+;
+
 let lastProcessedBlock = 0;
 const POLLING_INTERVAL = 5000;
 
 const listenToEvents = async () => {
-  console.log("Start event");
+  console.log("🔄 Starting Event Listener...");
 
   try {
-    lastProcessedBlock = await provider.getBlockNumber();
-    console.log(`Initialized. Last processed block: ${lastProcessedBlock}`);
+    const currentBlock = await provider.getBlockNumber();
+    console.log(`Current Blockchain Height: ${currentBlock}`);
+
+    if (lastProcessedBlock === 0) {
+      lastProcessedBlock = DEPLOYMENT_BLOCK;
+    }
+
+    console.log(`📜 Syncing history from block ${lastProcessedBlock} to ${currentBlock}...`);
+
+    await fetchEventsRange(lastProcessedBlock, currentBlock);
+
+    lastProcessedBlock = currentBlock;
+    console.log("✅ History synced. Switching to live polling...");
 
     setInterval(pollForEvents, POLLING_INTERVAL);
+
   } catch (error) {
-    console.error("Error:", error);
+    console.error("Initialization Error:", error);
   }
 };
 
-const pollForEvents = async () => {
+const fetchEventsRange = async (fromBlock, toBlock) => {
+  if (fromBlock > toBlock) return;
+
   try {
-    const currentBlock = await provider.getBlockNumber();
-
-    const fromBlock = lastProcessedBlock + 1;
-    const toBlock = currentBlock;
-
-    if (fromBlock > toBlock) {
-      return;
-    }
-
-    console.log(`Scanning blocks: ${fromBlock} -> ${toBlock}`);
+    console.log(`Scanning: ${fromBlock} -> ${toBlock}`);
 
     const [createdEvents, votedEvents, executedEvents] = await Promise.all([
       daoContract.queryFilter("ProposalCreated", fromBlock, toBlock),
@@ -48,16 +60,29 @@ const pollForEvents = async () => {
     for (const event of createdEvents) {
       handleProposalCreated(event);
     }
-
     for (const event of votedEvents) {
       handleVoted(event);
     }
-
     for (const event of executedEvents) {
       handleProposalExecuted(event);
     }
 
-    lastProcessedBlock = toBlock;
+  } catch (error) {
+    console.error("⚠️ Error fetching events (likely timeout):", error.message);
+  }
+};
+
+const pollForEvents = async () => {
+  try {
+    const currentBlock = await provider.getBlockNumber();
+
+    if (currentBlock <= lastProcessedBlock) {
+      return;
+    }
+
+    await fetchEventsRange(lastProcessedBlock + 1, currentBlock);
+
+    lastProcessedBlock = currentBlock;
 
   } catch (error) {
     console.error("Error during polling:", error.message);
@@ -71,6 +96,11 @@ const handleProposalCreated = (event) => {
   const creator = args[1];
   const description = args[2];
 
+  let deadline = 0;
+  if (args[3]) {
+    deadline = Number(args[3]);
+  }
+
   console.log(`[EVENT] ProposalCreated: ID: ${id}, Desc: ${description}`);
 
   if (!inMemoryProposals.find((p) => p.id === id)) {
@@ -79,8 +109,10 @@ const handleProposalCreated = (event) => {
       description: description,
       creator: creator,
       executed: false,
-      voteCount: 0,
+      votesFor: 0,
+      votesAgainst: 0,
       status: "Active",
+      deadline: deadline
     });
   }
 };
@@ -91,20 +123,24 @@ const handleVoted = (event) => {
   const voter = args[1];
   const support = args[2];
 
-  console.log(`[EVENT] Voted: ID: ${id}, Voter: ${voter}, Support: ${support}`);
+  console.log(`[EVENT] Voted: ID: ${id}, Support: ${support ? 'For' : 'Against'}`);
 
   const proposal = inMemoryProposals.find((p) => p.id === id);
   if (proposal) {
-    proposal.voteCount += 1;
+    if (support) {
+      proposal.votesFor += 1;
+    } else {
+      proposal.votesAgainst += 1;
+    }
+    console.log(`   -> New Score: For: ${proposal.votesFor}, Against: ${proposal.votesAgainst}`);
   }
 };
 
 const handleProposalExecuted = (event) => {
   const { args } = event;
   const id = Number(args[0]);
-  const executor = args[1];
 
-  console.log(`[EVENT] ProposalExecuted: ID: ${id}, Executor: ${executor}`);
+  console.log(`[EVENT] ProposalExecuted: ID: ${id}`);
 
   const proposal = inMemoryProposals.find((p) => p.id === id);
   if (proposal) {
