@@ -14,7 +14,7 @@ const daoContract = new ethers.Contract(
   provider
 );
 
-const DEPLOYMENT_BLOCK = 1877941
+const DEPLOYMENT_BLOCK = 2298791
 ;
 
 let lastProcessedBlock = 0;
@@ -49,26 +49,17 @@ const fetchEventsRange = async (fromBlock, toBlock) => {
   if (fromBlock > toBlock) return;
 
   try {
-    console.log(`Scanning: ${fromBlock} -> ${toBlock}`);
+    // Виконуємо запити по черзі, щоб не створювати Batch
+    const createdEvents = await daoContract.queryFilter("ProposalCreated", fromBlock, toBlock);
+    const votedEvents = await daoContract.queryFilter("Voted", fromBlock, toBlock);
+    const executedEvents = await daoContract.queryFilter("ProposalExecuted", fromBlock, toBlock);
 
-    const [createdEvents, votedEvents, executedEvents] = await Promise.all([
-      daoContract.queryFilter("ProposalCreated", fromBlock, toBlock),
-      daoContract.queryFilter("Voted", fromBlock, toBlock),
-      daoContract.queryFilter("ProposalExecuted", fromBlock, toBlock),
-    ]);
-
-    for (const event of createdEvents) {
-      handleProposalCreated(event);
-    }
-    for (const event of votedEvents) {
-      handleVoted(event);
-    }
-    for (const event of executedEvents) {
-      handleProposalExecuted(event);
-    }
+    for (const event of createdEvents) handleProposalCreated(event);
+    for (const event of votedEvents) handleVoted(event);
+    for (const event of executedEvents) handleProposalExecuted(event);
 
   } catch (error) {
-    console.error("⚠️ Error fetching events (likely timeout):", error.message);
+    console.error("⚠️ Error fetching events:", error.message);
   }
 };
 
